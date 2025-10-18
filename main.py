@@ -3,6 +3,8 @@ import heapq
 from collections import deque
 import time
 import pygame
+import csv  # <-- TAMBAHKAN INI
+import os   # <-- TAMBAHKAN INI
 
 # --- Konstanta Arah (opsional, untuk kejelasan) ---
 UP = (0, -1)
@@ -565,13 +567,68 @@ if __name__ == "__main__":
     print("\n--- Metrik Kinerja ---")
     print(f"Total Decisions: {decision_count}")
     
+    # Inisialisasi metrik untuk logging, bahkan jika decision_count = 0
+    avg_time = 0.0
+    avg_expansion = 0.0
+    
     if decision_count > 0:
         avg_time = (total_decision_time / decision_count) * 1000 # dalam ms
         avg_expansion = total_nodes_expanded / decision_count
         print(f"Average Time per Decision: {avg_time:.4f} ms")
         print(f"Average Nodes Expanded: {avg_expansion:.2f} nodes")
+    else:
+        print(f"Average Time per Decision: 0.0000 ms")
+        print(f"Average Nodes Expanded: 0.00 nodes")
 
-    # 5. Tampilkan Layar "Game Over" (di Pygame)
+    # --- (BARU) 5. Pencatatan Data ke CSV ---
+    
+    log_file = 'snake_experiment_log.csv'
+    
+    # Cek apakah file sudah ada untuk menentukan perlu header atau tidak
+    file_exists = os.path.isfile(log_file)
+    
+    # Sesuai proposal: 
+    header = [
+        'Algorithm', 
+        'Level', 
+        'Total Food', 
+        'Total Steps', 
+        'Average Time (ms)', 
+        'Average Expansion', 
+        'Replans',  # 'Replans' di proposal = 'decision_count' di kode kita
+        'Game Over Reason'
+    ]
+    
+    # Siapkan baris data
+    data_row = [
+        ALGO,
+        LEVEL,
+        game.score,
+        game.steps,
+        f"{avg_time:.4f}",
+        f"{avg_expansion:.2f}",
+        decision_count,
+        game.game_over_reason
+    ]
+
+    try:
+        # Buka file dalam mode 'a' (append)
+        # newline='' adalah parameter wajib saat bekerja dengan modul csv
+        with open(log_file, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            if not file_exists:
+                writer.writerow(header) # Tulis header HANYA jika file baru
+            
+            writer.writerow(data_row) # Tulis baris data simulasi
+        
+        print(f"\n[INFO] Hasil simulasi telah dicatat ke {log_file}")
+    
+    except IOError as e:
+        print(f"\n[ERROR] Gagal mencatat data ke CSV: {e}")
+    
+    # --- (LAMA) 5. Tampilkan Layar "Game Over" ---
+    # --- (SEKARANG) 6. Tampilkan Layar "Game Over" ---
     if not running: # Jika ditutup manual
         pygame.quit()
     else:
@@ -591,5 +648,3 @@ if __name__ == "__main__":
             clock.tick(30)
         
         pygame.quit()
-    
-    # TODO: Tulis hasil ini ke file CSV sesuai proposal
