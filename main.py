@@ -533,20 +533,26 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
     pygame.quit() # <-- TUTUP OTOMATIS
 # --- MAIN LOOP (Contoh Eksekusi) ---
 
-def analyze_results(log_file, level_to_analyze):
+def analyze_results(log_file):
     """
-    Membaca seluruh file log CSV dan membuat kesimpulan
-    performa BFS vs A* untuk level yang ditentukan menggunakan
-    model skoring berbobot (weighted scoring model).
+    Membaca log CSV (yang berisi BERBAGAI level) dan 
+    menerapkan model skoring spesifik per level, 
+    diikuti dengan analisis skor global.
     """
     if not os.path.isfile(log_file):
         print(f"File log '{log_file}' tidak ditemukan. Tidak ada analisis.")
         return
 
     # --- 1. Agregasi Data ---
-    # Kumpulkan semua data mentah dari CSV
-    stats_raw = collections.defaultdict(lambda: collections.defaultdict(list))
-    total_runs = collections.defaultdict(int)
+    # Struktur Data: stats_raw[LEVEL][ALGO][METRIC] = [list of values]
+    stats_raw = collections.defaultdict(lambda: 
+                    collections.defaultdict(lambda: 
+                        collections.defaultdict(list)))
+    
+    # Struktur Data: stats_raw_global[ALGO][METRIC] = [list of values]
+    stats_raw_global = collections.defaultdict(lambda: collections.defaultdict(list))
+    
+    all_levels_found = set()
 
     try:
         with open(log_file, 'r', encoding='utf-8') as f:
@@ -554,146 +560,157 @@ def analyze_results(log_file, level_to_analyze):
             for row in reader:
                 cleaned_row = {k.strip(): v.strip() for k, v in row.items()}
                 
-                if cleaned_row['Level'] == level_to_analyze:
-                    algo = cleaned_row['Algorithm']
-                    total_runs[algo] += 1
-                    try:
-                        stats_raw[algo]['Total Food'].append(int(cleaned_row['Total Food']))
-                        stats_raw[algo]['Total Steps'].append(int(cleaned_row['Total Steps']))
-                        stats_raw[algo]['Average Time (ms)'].append(float(cleaned_row['Average Time (ms)']))
-                        stats_raw[algo]['Average Expansion'].append(float(cleaned_row['Average Expansion']))
-                        stats_raw[algo]['Replans'].append(int(cleaned_row['Replans']))
-                    except ValueError as e:
-                        print(f"Peringatan: Melewatkan baris data error: {e} | {cleaned_row}")
+                level = cleaned_row.get('Level')
+                algo = cleaned_row.get('Algorithm')
+                
+                if not level or not algo:
+                    print(f"Peringatan: Melewatkan baris data tidak lengkap: {cleaned_row}")
+                    continue
+                    
+                all_levels_found.add(level)
+                
+                try:
+                    metrics_data = {
+                        'Total Food': int(cleaned_row['Total Food']),
+                        'Total Steps': int(cleaned_row['Total Steps']),
+                        'Average Time (ms)': float(cleaned_row['Average Time (ms)']),
+                        'Average Expansion': float(cleaned_row['Average Expansion']),
+                        'Replans': int(cleaned_row['Replans'])
+                    }
+                    
+                    for metric, value in metrics_data.items():
+                        stats_raw[level][algo][metric].append(value)
+                        stats_raw_global[algo][metric].append(value) # Tambahkan juga ke global
+                        
+                except ValueError as e:
+                    print(f"Peringatan: Melewatkan baris data error: {e} | {cleaned_row}")
 
         if not stats_raw:
-            print(f"Tidak ada data ditemukan untuk Level '{level_to_analyze}' di {log_file}.")
+            print(f"Tidak ada data valid yang ditemukan di {log_file}.")
             return
 
-        # Hitung Rata-rata (mean) dari data mentah
-        avg_stats = collections.defaultdict(dict)
-        for algo, metrics in stats_raw.items():
-            for metric, values in metrics.items():
-                avg_stats[algo][metric] = sum(values) / len(values) if values else 0
-        
-        # Siapkan data mentah (rata-rata) untuk normalisasi
-        raw_bfs = avg_stats.get('BFS', {})
-        raw_astar = avg_stats.get('A*', {})
-
-        # --- 2. Fungsi Normalisasi ---
+        # --- 2. Fungsi Normalisasi (Tetap sama) ---
         def normalize(val_bfs, val_astar, bigger_is_better=True):
-            """Normalisasi Min-Max untuk dua nilai."""
             x_min = min(val_bfs, val_astar)
             x_max = max(val_bfs, val_astar)
-            
-            # Hindari pembagian dengan nol jika nilainya identik
-            if x_max == x_min:
-                return (1.0, 1.0) # Keduanya sama baiknya
-                
+            if x_max == x_min: return (1.0, 1.0)
             n_bfs = (val_bfs - x_min) / (x_max - x_min)
             n_astar = (val_astar - x_min) / (x_max - x_min)
-            
-            if bigger_is_better:
-                return (n_bfs, n_astar)
-            else: # Smaller is better, invert scores
-                return (1.0 - n_bfs, 1.0 - n_astar)
+            return (n_bfs, n_astar) if bigger_is_better else (1.0 - n_bfs, 1.0 - n_astar)
 
         def normalize_rei(val_bfs, val_astar):
-            """Normalisasi khusus REI: 1 - (x / max(x))"""
-            x_max = max(val_bfs, val_astar, 1) # Gunakan 1 untuk hindari /0
-            if x_max == 0:
-                return (1.0, 1.0) # Keduanya sempurna (tidak ada replan)
-                
-            n_bfs = 1.0 - (val_bfs / x_max)
-            n_astar = 1.0 - (val_astar / x_max)
-            return (n_bfs, n_astar)
+            x_max = max(val_bfs, val_astar, 1)
+            if x_max == 0: return (1.0, 1.0)
+            return (1.0 - (val_bfs / x_max), 1.0 - (val_astar / x_max))
 
-        # --- 3. Dapatkan Skor Ternormalisasi (N_scores) ---
-        
-        # Ambil nilai rata-rata (default ke 0 jika tidak ada data)
-        bfs_food  = raw_bfs.get('Total Food', 0)
-        bfs_steps = raw_bfs.get('Total Steps', 0)
-        bfs_time  = raw_bfs.get('Average Time (ms)', 0)
-        bfs_exp   = raw_bfs.get('Average Expansion', 0)
-        bfs_rei   = raw_bfs.get('Replans', 0)
-        
-        astar_food  = raw_astar.get('Total Food', 0)
-        astar_steps = raw_astar.get('Total Steps', 0)
-        astar_time  = raw_astar.get('Average Time (ms)', 0)
-        astar_exp   = raw_astar.get('Average Expansion', 0)
-        astar_rei   = raw_astar.get('Replans', 0)
-
-        # Lakukan Normalisasi
-        (n_bfs_food, n_astar_food)   = normalize(bfs_food, astar_food, bigger_is_better=True)
-        (n_bfs_steps, n_astar_steps) = normalize(bfs_steps, astar_steps, bigger_is_better=False)
-        (n_bfs_time, n_astar_time)   = normalize(bfs_time, astar_time, bigger_is_better=False)
-        (n_bfs_exp, n_astar_exp)     = normalize(bfs_exp, astar_exp, bigger_is_better=False)
-        (n_bfs_rei, n_astar_rei)     = normalize_rei(bfs_rei, astar_rei)
-        
-        # Kumpulkan N-scores dalam dictionary
-        n_scores_bfs = {'Food': n_bfs_food, 'Steps': n_bfs_steps, 'Time': n_bfs_time, 'Exp': n_bfs_exp, 'REI': n_bfs_rei}
-        n_scores_astar = {'Food': n_astar_food, 'Steps': n_astar_steps, 'Time': n_astar_time, 'Exp': n_astar_exp, 'REI': n_astar_rei}
-
-        # --- 4. Terapkan Bobot (Weights) ---
-        weights = {
+        # --- 3. Definisikan SEMUA Bobot ---
+        all_weights = {
             'Global': {'Food': 0.35, 'Steps': 0.10, 'Time': 0.25, 'Exp': 0.15, 'REI': 0.15},
             'Easy':   {'Food': 0.30, 'Steps': 0.25, 'Time': 0.15, 'Exp': 0.10, 'REI': 0.20},
             'Medium': {'Food': 0.30, 'Steps': 0.15, 'Time': 0.20, 'Exp': 0.10, 'REI': 0.25},
             'Hard':   {'Food': 0.25, 'Steps': 0.10, 'Time': 0.25, 'Exp': 0.10, 'REI': 0.30}
         }
-        
-        final_scores = {'BFS': {}, 'A*': {}}
-        for formula_name, formula_weights in weights.items():
-            score_bfs = 0
-            score_astar = 0
+
+        # --- 4. Fungsi Helper untuk Menghitung Skor ---
+        def calculate_score(raw_data_bfs, raw_data_astar, formula_weights):
+            # Hitung rata-rata
+            avg_bfs = {metric: sum(vals) / len(vals) for metric, vals in raw_data_bfs.items() if vals}
+            avg_astar = {metric: sum(vals) / len(vals) for metric, vals in raw_data_astar.items() if vals}
+            
+            # Ambil nilai rata-rata (default 0)
+            bfs_food  = avg_bfs.get('Total Food', 0)
+            bfs_steps = avg_bfs.get('Total Steps', 0)
+            bfs_time  = avg_bfs.get('Average Time (ms)', 0)
+            bfs_exp   = avg_bfs.get('Average Expansion', 0)
+            bfs_rei   = avg_bfs.get('Replans', 0)
+            
+            astar_food  = avg_astar.get('Total Food', 0)
+            astar_steps = avg_astar.get('Total Steps', 0)
+            astar_time  = avg_astar.get('Average Time (ms)', 0)
+            astar_exp   = avg_astar.get('Average Expansion', 0)
+            astar_rei   = avg_astar.get('Replans', 0)
+
+            # Normalisasi
+            (n_bfs_food, n_astar_food)   = normalize(bfs_food, astar_food, bigger_is_better=True)
+            (n_bfs_steps, n_astar_steps) = normalize(bfs_steps, astar_steps, bigger_is_better=False)
+            (n_bfs_time, n_astar_time)   = normalize(bfs_time, astar_time, bigger_is_better=False)
+            (n_bfs_exp, n_astar_exp)     = normalize(bfs_exp, astar_exp, bigger_is_better=False)
+            (n_bfs_rei, n_astar_rei)     = normalize_rei(bfs_rei, astar_rei)
+            
+            n_scores_bfs = {'Food': n_bfs_food, 'Steps': n_bfs_steps, 'Time': n_bfs_time, 'Exp': n_bfs_exp, 'REI': n_bfs_rei}
+            n_scores_astar = {'Food': n_astar_food, 'Steps': n_astar_steps, 'Time': n_astar_time, 'Exp': n_astar_exp, 'REI': n_astar_rei}
+
+            # Hitung skor akhir
+            final_score_bfs = 0
+            final_score_astar = 0
             for metric, weight in formula_weights.items():
-                score_bfs += n_scores_bfs[metric] * weight
-                score_astar += n_scores_astar[metric] * weight
-            final_scores['BFS'][formula_name] = score_bfs
-            final_scores['A*'][formula_name] = score_astar
+                final_score_bfs += n_scores_bfs[metric] * weight
+                final_score_astar += n_scores_astar[metric] * weight
+            
+            return final_score_bfs, final_score_astar
 
-        # --- 5. Tampilkan Kesimpulan Baru ---
-        
-        # Tabel 1: Rata-rata Mentah (untuk konteks)
-        print("\n" + "="*48)
-        print(f" RATA-RATA MENTAH (Level: {level_to_analyze}) ".center(48, "="))
-        print("="*48)
-        print(f"{'Metrik':<20} | {'BFS':>12} | {'A*':>12}")
-        print("-" * 49)
-        print(f"{'Total Food':<20} | {bfs_food:>12.2f} | {astar_food:>12.2f}")
-        print(f"{'Total Steps':<20} | {bfs_steps:>12.2f} | {astar_steps:>12.2f}")
-        print(f"{'Average Time (ms)':<20} | {bfs_time:>12.2f} | {astar_time:>12.2f}")
-        print(f"{'Average Expansion':<20} | {bfs_exp:>12.2f} | {astar_exp:>12.2f}")
-        print(f"{'Replans':<20} | {bfs_rei:>12.2f} | {astar_rei:>12.2f}")
-        print(f"\nTotal Runs: {total_runs.get('BFS', 0)} (BFS), {total_runs.get('A*', 0)} (A*)")
+        # --- 5. Jalankan Analisis Per-Level ---
+        print("\n" + "="*50)
+        print(" HASIL ANALISIS PER-LEVEL ".center(50, "="))
+        print("="*50)
 
-        # Tabel 2: Skor Akhir (Hasil Utama)
-        print("\n" + "="*48)
-        print(f" SKOR AKHIR TERNORMALISASI ".center(48, "="))
-        print("="*48)
-        print(f"{'Formula Skor':<20} | {'BFS':>12} | {'A*':>12} | {'Pemenang':<8}")
-        print("-" * 49)
-        
-        for formula_name in weights.keys():
-            bfs_score = final_scores['BFS'][formula_name]
-            astar_score = final_scores['A*'][formula_name]
-            winner = "A*" if astar_score > bfs_score else "BFS" if bfs_score > astar_score else "Seri"
-            print(f"{formula_name:<20} | {bfs_score:>12.3f} | {astar_score:>12.3f} | {winner:<8}")
-        
-        print("=" * 49)
+        for level in sorted(all_levels_found):
+            print(f"\n--- Analisis Level: {level} ---")
+            
+            raw_data_bfs = stats_raw.get(level, {}).get('BFS', {})
+            raw_data_astar = stats_raw.get(level, {}).get('A*', {})
+            
+            if not raw_data_bfs or not raw_data_astar:
+                print(f"Data tidak lengkap untuk level {level}. Melewatkan.")
+                continue
 
-        # Kesimpulan Final berdasarkan formula spesifik level tersebut
-        level_specific_score_bfs = final_scores['BFS'][level_to_analyze]
-        level_specific_score_astar = final_scores['A*'][level_to_analyze]
+            # Ambil formula skor yang sesuai
+            formula_weights = all_weights.get(level, all_weights['Global'])
+            score_bfs, score_astar = calculate_score(raw_data_bfs, raw_data_astar, formula_weights)
+            
+            print(f"{'Algorithm':<10} | {'Skor Akhir':>12}")
+            print("-" * 25)
+            print(f"{'A*':<10} | {score_astar:>12.3f}")
+            print(f"{'BFS':<10} | {score_bfs:>12.3f}")
+            
+            if score_astar > score_bfs:
+                print(f"Pemenang: A* (Skor {score_astar:.3f} vs {score_bfs:.3f})")
+            elif score_bfs > score_astar:
+                print(f"Pemenang: BFS (Skor {score_bfs:.3f} vs {score_astar:.3f})")
+            else:
+                print(f"Pemenang: Seri (Skor {score_bfs:.3f})")
+
+        # --- 6. Jalankan Analisis Global ---
+        print("\n" + "="*50)
+        print(" HASIL ANALISIS GLOBAL (SEMUA LEVEL) ".center(50, "="))
+        print("="*50)
         
-        print(f"\n🏆 KESIMPULAN (Formula Level: {level_to_analyze}):")
-        if level_specific_score_astar > level_specific_score_bfs:
-            print(f"A* lebih unggul dengan skor {level_specific_score_astar:.3f} vs {level_specific_score_bfs:.3f}.")
-        elif level_specific_score_bfs > level_specific_score_astar:
-             print(f"BFS lebih unggul dengan skor {level_specific_score_bfs:.3f} vs {level_specific_score_astar:.3f}.")
+        raw_global_bfs = stats_raw_global.get('BFS', {})
+        raw_global_astar = stats_raw_global.get('A*', {})
+        
+        if not raw_global_bfs or not raw_global_astar:
+            print("Data global tidak lengkap. Analisis global dibatalkan.")
+            return
+
+        # Hitung skor global menggunakan formula "Global"
+        formula_weights_global = all_weights['Global']
+        score_global_bfs, score_global_astar = calculate_score(raw_global_bfs, raw_global_astar, formula_weights_global)
+
+        print("\nSkor Rata-rata Gabungan (Formula Global):")
+        print(f"{'Algorithm':<10} | {'Skor Akhir':>12}")
+        print("-" * 25)
+        print(f"{'A*':<10} | {score_global_astar:>12.3f}")
+        print(f"{'BFS':<10} | {score_global_bfs:>12.3f}")
+        
+        print("\n" + "🏆" * 20)
+        print(" KESIMPULAN UTAMA ".center(40))
+        if score_global_astar > score_global_bfs:
+            print(f"Secara keseluruhan, A* lebih unggul (Skor {score_global_astar:.3f} vs {score_global_bfs:.3f}).")
+        elif score_global_bfs > score_global_astar:
+             print(f"Secara keseluruhan, BFS lebih unggul (Skor {score_global_bfs:.3f} vs {score_global_astar:.3f}).")
         else:
-             print(f"A* dan BFS memiliki performa seimbang dengan skor {level_specific_score_bfs:.3f}.")
-        print("=" * 49)
+             print(f"Secara keseluruhan, A* dan BFS memiliki performa seimbang.")
+        print("=" * 50)
 
     except Exception as e:
         print(f"Gagal menganalisis file CSV: {e}")
@@ -793,4 +810,4 @@ if __name__ == "__main__":
     
     # --- (BARU) Analisis Final ---
     print("\nSimulasi dihentikan oleh pengguna. Memulai analisis data...")
-    analyze_results(log_file_name, LEVEL)
+    analyze_results(log_file_name)
