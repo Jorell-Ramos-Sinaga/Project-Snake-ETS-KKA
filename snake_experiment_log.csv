@@ -1,0 +1,31 @@
+Algorithm,Level,Total Food,Total Steps,Average Time (ms),Average Expansion,Replans,Game Over Reason
+BFS,Easy,54,615,0.331,90.65,55,No Path Found (Trapped)
+BFS,Easy,33,373,0.4109,102.85,34,No Path Found (Trapped)
+BFS,Easy,31,378,0.3734,108.69,32,Self-collision
+BFS,Easy,31,378,0.4547,104.69,32,No Path Found (Trapped)
+BFS,Easy,48,553,0.4168,98.94,49,No Path Found (Trapped)
+A*,Easy,69,1000,0.6826,48.67,89,Step Limit Reached
+A*,Easy,67,1000,0.7447,45.24,101,Step Limit Reached
+A*,Easy,69,987,0.7462,39.23,82,Self-collision
+A*,Easy,39,464,0.6859,29.4,40,Self-collision
+A*,Easy,71,1000,0.6275,40.33,75,Step Limit Reached
+BFS,Medium,55,1000,0.6421,180.34,56,Step Limit Reached
+BFS,Medium,61,1000,0.6502,164.19,62,Step Limit Reached
+BFS,Medium,45,776,0.6935,187.98,46,No Path Found (Trapped)
+BFS,Medium,20,270,0.5994,153.52,21,No Path Found (Trapped)
+BFS,Medium,43,727,0.6431,184.05,44,No Path Found (Trapped)
+A*,Medium,65,1000,1.1051,47.91,69,Step Limit Reached
+A*,Medium,53,1000,1.1106,55.17,54,Step Limit Reached
+A*,Medium,60,1000,1.0397,54.05,65,Step Limit Reached
+A*,Medium,56,1000,1.1245,58.04,57,Step Limit Reached
+A*,Medium,57,1000,1.085,54.41,58,Step Limit Reached
+BFS,Hard,48,1000,0.9116,298.71,49,Step Limit Reached
+BFS,Hard,40,890,0.8966,302.24,41,No Path Found (Trapped)
+BFS,Hard,33,764,0.9773,301.56,34,No Path Found (Trapped)
+BFS,Hard,27,514,0.6917,274.75,28,No Path Found (Trapped)
+BFS,Hard,56,949,0.5694,211.63,57,No Path Found (Trapped)
+A*,Hard,40,1000,1.3115,90.78,41,Step Limit Reached
+A*,Hard,50,1000,1.2329,65.96,52,Step Limit Reached
+A*,Hard,50,1000,1.3838,74.31,51,Step Limit Reached
+A*,Hard,42,1000,1.5053,98.18,45,Step Limit Reached
+A*,Hard,48,1000,1.4394,75.32,50,Step Limit Reached
