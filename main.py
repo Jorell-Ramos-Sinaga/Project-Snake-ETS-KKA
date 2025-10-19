@@ -770,7 +770,7 @@ if __name__ == "__main__":
             "size": (20, 20),
             "obstacles": obs_medium,
             "food_trigger": 7,           # Setiap 7 makanan
-            "obstacle_spawn_count": (1, 1)  # Spawn TEPAT 1
+            "obstacle_spawn_count": (1, 2)  # Spawn TEPAT 1
         },
         "Hard": {
             "size": (25, 25),
