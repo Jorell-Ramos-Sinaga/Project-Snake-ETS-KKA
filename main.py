@@ -309,26 +309,41 @@ def is_path_safe(game, path_to_food):
     """
     Mensimulasikan pergerakan ular di 'path_to_food' dan mengecek
     apakah ada jalur dari kepala baru ke ekor baru.
+    Versi ini mensimulasikan pergerakan ekor dengan benar.
     """
     
-    # 1. Buat tubuh ular hipotetis setelah bergerak & makan
-    temp_snake_body = set(game.snake_body_set)
+    # 1. Buat tubuh ular hipotetis (virtual) menggunakan deque
+    virtual_snake = deque(game.snake)
+    virtual_snake_set = set(game.snake)
     
-    # 'Makan' semua sel di jalur
-    for pos in path_to_food[1:]: # Mulai dari [1:] karena [0] sudah di tubuh
-        temp_snake_body.add(pos)
+    # 2. Simulasikan pergerakan ular LANGKAH DEMI LANGKAH
+    #    Kita tidak bisa hanya .add() karena ekor juga bergerak
+    
+    # path_to_food[0] adalah kepala saat ini, jadi kita mulai dari [1]
+    for i in range(1, len(path_to_food)):
+        new_head = path_to_food[i]
         
-    # Karena kita 'makan', ekor TIDAK bergerak/dihapus.
+        # Tambahkan kepala baru
+        virtual_snake.appendleft(new_head)
+        virtual_snake_set.add(new_head)
+        
+        # Hapus ekor HANYA JIKA langkah ini BUKAN langkah memakan makanan
+        if i < len(path_to_food) - 1: # Jika ini bukan langkah terakhir (ke makanan)
+            tail = virtual_snake.pop()
+            # Hati-hati: jangan hapus segmen tubuh jika ia muncul 2x
+            # (ini jarang terjadi tapi mungkin, misal kepala memotong ekor)
+            if tail not in virtual_snake:
+                virtual_snake_set.remove(tail)
+                
+    # 3. Tentukan kepala dan ekor baru (hipotetis)
+    final_head = virtual_snake[0] # Ini adalah posisi makanan
+    final_tail = virtual_snake[-1]
     
-    # 2. Tentukan kepala dan ekor baru (hipotetis)
-    new_head = path_to_food[-1] # Posisi kepala adalah di makanan
-    new_tail = game.snake[-1]   # Ekor tetap di tempat
-    
-    # 3. Jalankan simulasi BFS
-    # Kita harus menggabungkan semua rintangan
-    all_temp_obstacles = temp_snake_body.union(game.static_obstacles, game.dynamic_obstacles)
+    # 4. Jalankan simulasi BFS
+    # Rintangan adalah tubuh ular virtual + rintangan game
+    all_temp_obstacles = virtual_snake_set.union(game.static_obstacles, game.dynamic_obstacles)
 
-    return _run_bfs_simulation(game, new_head, new_tail, all_temp_obstacles)
+    return _run_bfs_simulation(game, final_head, final_tail, all_temp_obstacles)
 
 def get_direction_from_path(head, next_step):
     """Mendapatkan vektor arah (dx, dy) dari dua titik."""
