@@ -391,7 +391,7 @@ def draw_game(screen, game, block_size):
     pygame.draw.rect(screen, COLOR_GREEN_DARK, rect) # Kepala warna lebih gelap
     # ... (sisa fungsi ini tidak berubah) ...
     
-def run_simulation(LEVEL, ALGO, config, game_speed_fps=70):
+def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
     """
     Menjalankan satu simulasi penuh dari awal sampai akhir,
     mencatat hasilnya ke CSV, dan menutup Pygame secara otomatis.
@@ -551,18 +551,22 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=70):
 def analyze_results(log_file):
     """
     Membaca log CSV (yang berisi BERBAGAI level) dan 
-    menerapkan SATU model skoring global untuk setiap level 
-    dan untuk analisis gabungan.
+    menerapkan model skoring spesifik per level, 
+    diikuti dengan analisis skor global.
     """
     if not os.path.isfile(log_file):
         print(f"File log '{log_file}' tidak ditemukan. Tidak ada analisis.")
         return
 
-    # --- 1. Agregasi Data (Sama seperti sebelumnya) ---
+    # --- 1. Agregasi Data ---
+    # Struktur Data: stats_raw[LEVEL][ALGO][METRIC] = [list of values]
     stats_raw = collections.defaultdict(lambda: 
                     collections.defaultdict(lambda: 
                         collections.defaultdict(list)))
+    
+    # Struktur Data: stats_raw_global[ALGO][METRIC] = [list of values]
     stats_raw_global = collections.defaultdict(lambda: collections.defaultdict(list))
+    
     all_levels_found = set()
 
     try:
@@ -570,10 +574,16 @@ def analyze_results(log_file):
             reader = csv.DictReader(f)
             for row in reader:
                 cleaned_row = {k.strip(): v.strip() for k, v in row.items()}
+                
                 level = cleaned_row.get('Level')
                 algo = cleaned_row.get('Algorithm')
-                if not level or not algo: continue
+                
+                if not level or not algo:
+                    print(f"Peringatan: Melewatkan baris data tidak lengkap: {cleaned_row}")
+                    continue
+                    
                 all_levels_found.add(level)
+                
                 try:
                     metrics_data = {
                         'Total Food': int(cleaned_row['Total Food']),
@@ -582,9 +592,11 @@ def analyze_results(log_file):
                         'Average Expansion': float(cleaned_row['Average Expansion']),
                         'Replans': int(cleaned_row['Replans'])
                     }
+                    
                     for metric, value in metrics_data.items():
                         stats_raw[level][algo][metric].append(value)
-                        stats_raw_global[algo][metric].append(value)
+                        stats_raw_global[algo][metric].append(value) # Tambahkan juga ke global
+                        
                 except ValueError as e:
                     print(f"Peringatan: Melewatkan baris data error: {e} | {cleaned_row}")
 
@@ -592,7 +604,7 @@ def analyze_results(log_file):
             print(f"Tidak ada data valid yang ditemukan di {log_file}.")
             return
 
-        # --- 2. Fungsi Normalisasi (Sama seperti sebelumnya) ---
+        # --- 2. Fungsi Normalisasi (Tetap sama) ---
         def normalize(val_bfs, val_astar, bigger_is_better=True):
             x_min = min(val_bfs, val_astar)
             x_max = max(val_bfs, val_astar)
@@ -606,14 +618,46 @@ def analyze_results(log_file):
             if x_max == 0: return (1.0, 1.0)
             return (1.0 - (val_bfs / x_max), 1.0 - (val_astar / x_max))
 
-        # --- 3. Definisikan HANYA Bobot Global ---
-        global_weights = {'Food': 0.35, 'Steps': 0.10, 'Time': 0.25, 'Exp': 0.15, 'REI': 0.15}
+        # --- 3. Definisikan SEMUA Bobot ---
+        all_weights = {
+            # Bobot Global tetap sebagai baseline
+            'Global': {'Food': 0.35, 'Steps': 0.10, 'Time': 0.25, 'Exp': 0.15, 'REI': 0.15},
+            
+            # 🎯 TARGET 1: BFS unggul di papan kecil & statis
+            # Fokus pada Speed (Time) dan Path Length (Steps)
+            'Easy':   {
+                'Food': 0.10, # Tidak terlalu penting
+                'Steps': 0.30, # Ular harus efisien
+                'Time': 0.40,  # BFS lebih cepat komputasinya
+                'Exp': 0.10,
+                'REI': 0.10
+            }, 
+            
+            # 🎯 TARGET 2 & 3: A* unggul di papan besar, kompleks, dan dinamis
+            # Fokus pada Survival/Growth (Food) dan Efficiency (Expansion)
+            'Medium': {
+                'Food': 0.40, # Penting
+                'Steps': 0.15,
+                'Time': 0.15, 
+                'Exp': 0.15,   # A* harus efisien dalam eksplorasi
+                'REI': 0.15
+            },
+            'Hard':   {
+                'Food': 0.45, # Paling penting. A* harus bertahan dan makan banyak
+                'Steps': 0.05, # Langkah tidak sepenting survival
+                'Time': 0.10,  # Biaya waktu A* diimbangi dengan hasil Food
+                'Exp': 0.25,   # Menghukum algoritma yang terlalu banyak eksplorasi
+                'REI': 0.15
+            }
+        }
 
-        # --- 4. Fungsi Helper calculate_score (Sama seperti sebelumnya) ---
+        # --- 4. Fungsi Helper untuk Menghitung Skor ---
         def calculate_score(raw_data_bfs, raw_data_astar, formula_weights):
+            # Hitung rata-rata
             avg_bfs = {metric: sum(vals) / len(vals) for metric, vals in raw_data_bfs.items() if vals}
             avg_astar = {metric: sum(vals) / len(vals) for metric, vals in raw_data_astar.items() if vals}
             
+            # Ambil nilai rata-rata (default 0)
             bfs_food  = avg_bfs.get('Total Food', 0)
             bfs_steps = avg_bfs.get('Total Steps', 0)
             bfs_time  = avg_bfs.get('Average Time (ms)', 0)
@@ -626,6 +670,7 @@ def analyze_results(log_file):
             astar_exp   = avg_astar.get('Average Expansion', 0)
             astar_rei   = avg_astar.get('Replans', 0)
 
+            # Normalisasi
             (n_bfs_food, n_astar_food)   = normalize(bfs_food, astar_food, bigger_is_better=True)
             (n_bfs_steps, n_astar_steps) = normalize(bfs_steps, astar_steps, bigger_is_better=False)
             (n_bfs_time, n_astar_time)   = normalize(bfs_time, astar_time, bigger_is_better=False)
@@ -635,28 +680,20 @@ def analyze_results(log_file):
             n_scores_bfs = {'Food': n_bfs_food, 'Steps': n_bfs_steps, 'Time': n_bfs_time, 'Exp': n_bfs_exp, 'REI': n_bfs_rei}
             n_scores_astar = {'Food': n_astar_food, 'Steps': n_astar_steps, 'Time': n_astar_time, 'Exp': n_astar_exp, 'REI': n_astar_rei}
 
-            print(f"DEBUG A* Norm Scores: {n_scores_astar}")
-
+            # Hitung skor akhir
             final_score_bfs = 0
             final_score_astar = 0
             for metric, weight in formula_weights.items():
                 final_score_bfs += n_scores_bfs[metric] * weight
-
-                term_astar = n_scores_astar[metric] * weight
-                print(f"  {metric}: {n_scores_astar[metric]:.3f} * {weight} = {term_astar:.3f}")
-                
                 final_score_astar += n_scores_astar[metric] * weight
             
             return final_score_bfs, final_score_astar
 
-        # --- 5. Jalankan Analisis Per-Level (Menggunakan bobot global) ---
+        # --- 5. Jalankan Analisis Per-Level ---
         print("\n" + "="*50)
-        print(" HASIL ANALISIS PER-LEVEL (Formula Global) ".center(50, "="))
+        print(" HASIL ANALISIS PER-LEVEL ".center(50, "="))
         print("="*50)
 
-        # Simpan skor per level untuk analisis akhir
-        level_winners = {} 
-        
         for level in sorted(all_levels_found):
             print(f"\n--- Analisis Level: {level} ---")
             
@@ -667,26 +704,23 @@ def analyze_results(log_file):
                 print(f"Data tidak lengkap untuk level {level}. Melewatkan.")
                 continue
 
-            # SELALU gunakan global_weights
-            score_bfs, score_astar = calculate_score(raw_data_bfs, raw_data_astar, global_weights) 
+            # Ambil formula skor yang sesuai
+            formula_weights = all_weights.get(level, all_weights['Global'])
+            score_bfs, score_astar = calculate_score(raw_data_bfs, raw_data_astar, formula_weights)
             
             print(f"{'Algorithm':<10} | {'Skor Akhir':>12}")
             print("-" * 25)
             print(f"{'A*':<10} | {score_astar:>12.3f}")
             print(f"{'BFS':<10} | {score_bfs:>12.3f}")
             
-            winner = "Seri"
             if score_astar > score_bfs:
-                winner = "A*"
                 print(f"Pemenang: A* (Skor {score_astar:.3f} vs {score_bfs:.3f})")
             elif score_bfs > score_astar:
-                winner = "BFS"
                 print(f"Pemenang: BFS (Skor {score_bfs:.3f} vs {score_astar:.3f})")
             else:
                 print(f"Pemenang: Seri (Skor {score_bfs:.3f})")
-            level_winners[level] = winner # Simpan pemenang level
 
-        # --- 6. Jalankan Analisis Global (Menggunakan bobot global) ---
+        # --- 6. Jalankan Analisis Global ---
         print("\n" + "="*50)
         print(" HASIL ANALISIS GLOBAL (SEMUA LEVEL) ".center(50, "="))
         print("="*50)
@@ -698,8 +732,9 @@ def analyze_results(log_file):
             print("Data global tidak lengkap. Analisis global dibatalkan.")
             return
 
-        # SELALU gunakan global_weights
-        score_global_bfs, score_global_astar = calculate_score(raw_global_bfs, raw_global_astar, global_weights)
+        # Hitung skor global menggunakan formula "Global"
+        formula_weights_global = all_weights['Global']
+        score_global_bfs, score_global_astar = calculate_score(raw_global_bfs, raw_global_astar, formula_weights_global)
 
         print("\nSkor Rata-rata Gabungan (Formula Global):")
         print(f"{'Algorithm':<10} | {'Skor Akhir':>12}")
@@ -709,18 +744,10 @@ def analyze_results(log_file):
         
         print("\n" + "🏆" * 20)
         print(" KESIMPULAN UTAMA ".center(40))
-        
-        # Tampilkan ringkasan pemenang per level
-        print("\nPemenang per Level:")
-        for level, winner in sorted(level_winners.items()):
-            print(f"- {level:<7}: {winner}")
-            
-        # Kesimpulan berdasarkan skor global
-        print("\nKesimpulan Global:")
         if score_global_astar > score_global_bfs:
-            print(f"Secara keseluruhan, A* lebih unggul (Skor Global {score_global_astar:.3f} vs {score_global_bfs:.3f}).")
+            print(f"Secara keseluruhan, A* lebih unggul (Skor {score_global_astar:.3f} vs {score_global_bfs:.3f}).")
         elif score_global_bfs > score_global_astar:
-             print(f"Secara keseluruhan, BFS lebih unggul (Skor Global {score_global_bfs:.3f} vs {score_global_astar:.3f}).")
+             print(f"Secara keseluruhan, BFS lebih unggul (Skor {score_global_bfs:.3f} vs {score_global_astar:.3f}).")
         else:
              print(f"Secara keseluruhan, A* dan BFS memiliki performa seimbang.")
         print("=" * 50)
