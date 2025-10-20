@@ -1,31 +1,31 @@
-Algorithm,Level,Total Food,Total Steps,Average Time (ms),Average Expansion,Replans,Game Over Reason
-BFS,Easy,54,615,0.331,90.65,55,No Path Found (Trapped)
-BFS,Easy,33,373,0.4109,102.85,34,No Path Found (Trapped)
-BFS,Easy,31,378,0.3734,108.69,32,Self-collision
-BFS,Easy,31,378,0.4547,104.69,32,No Path Found (Trapped)
-BFS,Easy,48,553,0.4168,98.94,49,No Path Found (Trapped)
-A*,Easy,69,1000,0.6826,48.67,89,Step Limit Reached
-A*,Easy,67,1000,0.7447,45.24,101,Step Limit Reached
-A*,Easy,69,987,0.7462,39.23,82,Self-collision
-A*,Easy,39,464,0.6859,29.4,40,Self-collision
-A*,Easy,71,1000,0.6275,40.33,75,Step Limit Reached
-BFS,Medium,55,1000,0.6421,180.34,56,Step Limit Reached
-BFS,Medium,61,1000,0.6502,164.19,62,Step Limit Reached
-BFS,Medium,45,776,0.6935,187.98,46,No Path Found (Trapped)
-BFS,Medium,20,270,0.5994,153.52,21,No Path Found (Trapped)
-BFS,Medium,43,727,0.6431,184.05,44,No Path Found (Trapped)
-A*,Medium,65,1000,1.1051,47.91,69,Step Limit Reached
-A*,Medium,53,1000,1.1106,55.17,54,Step Limit Reached
-A*,Medium,60,1000,1.0397,54.05,65,Step Limit Reached
-A*,Medium,56,1000,1.1245,58.04,57,Step Limit Reached
-A*,Medium,57,1000,1.085,54.41,58,Step Limit Reached
-BFS,Hard,48,1000,0.9116,298.71,49,Step Limit Reached
-BFS,Hard,40,890,0.8966,302.24,41,No Path Found (Trapped)
-BFS,Hard,33,764,0.9773,301.56,34,No Path Found (Trapped)
-BFS,Hard,27,514,0.6917,274.75,28,No Path Found (Trapped)
-BFS,Hard,56,949,0.5694,211.63,57,No Path Found (Trapped)
-A*,Hard,40,1000,1.3115,90.78,41,Step Limit Reached
-A*,Hard,50,1000,1.2329,65.96,52,Step Limit Reached
-A*,Hard,50,1000,1.3838,74.31,51,Step Limit Reached
-A*,Hard,42,1000,1.5053,98.18,45,Step Limit Reached
-A*,Hard,48,1000,1.4394,75.32,50,Step Limit Reached
+Algorithm,Level,Total Food,Total Steps,Average Time (ms),Average Expansion,Replans,Game Over Reason,,,,
+BFS,Easy,21,208,0.5296,104.64,22,No Path Found (Trapped),,,,
+BFS,Easy,34,424,0.4749,118.86,35,No Path Found (Trapped),,,,
+BFS,Easy,34,355,0.3659,93.03,35,No Path Found (Trapped),,,,0.855193333
+BFS,Easy,39,411,0.4194,97.83,40,No Path Found (Trapped),,,,1.453866667
+BFS,Easy,44,477,0.3423,91.91,45,No Path Found (Trapped),,,,
+A*,Easy,66,1000,0.7012,39.53,89,Step Limit Reached,,,,34.4
+A*,Easy,65,1000,0.742,43.77,74,Step Limit Reached,,,,45.3
+A*,Easy,69,1000,0.7258,34.68,85,Step Limit Reached,,,,-31.68604651
+A*,Easy,65,924,0.8097,38.27,81,Self-collision,,,,
+A*,Easy,47,581,0.7379,31.63,49,Self-collision,,,,
+BFS,Medium,58,955,0.7603,176.12,59,No Path Found (Trapped),,,,
+BFS,Medium,54,1000,0.9461,192.96,55,Step Limit Reached,,,,
+BFS,Medium,40,629,0.7668,174.9,41,No Path Found (Trapped),,,,
+BFS,Medium,33,496,0.8034,169.5,34,No Path Found (Trapped),,,,
+BFS,Medium,39,625,0.6902,174.4,40,No Path Found (Trapped),,,,
+A*,Medium,67,1000,1.3435,41.11,70,Step Limit Reached,,,,
+A*,Medium,53,1000,1.696,59.55,56,Step Limit Reached,,,,
+A*,Medium,21,368,1.2402,46.59,22,No Path Found (Trapped),,,,
+A*,Medium,56,1000,1.5966,60.78,64,Step Limit Reached,,,,
+A*,Medium,51,922,1.4395,46.61,54,Self-collision,,,,
+BFS,Hard,44,1000,1.4101,298.89,45,Step Limit Reached,,,,
+BFS,Hard,47,1000,1.3998,282.25,48,Step Limit Reached,,,,
+BFS,Hard,47,1000,1.346,297.04,48,Step Limit Reached,,,,
+BFS,Hard,49,1000,1.227,276.52,50,Step Limit Reached,,,,
+BFS,Hard,42,1000,1.3461,304.67,43,Step Limit Reached,,,,
+A*,Hard,51,1000,2.0734,83.65,54,Step Limit Reached,,,,
+A*,Hard,56,1000,1.7469,52.79,57,Step Limit Reached,,,,
+A*,Hard,51,1000,2.2169,69.94,52,Step Limit Reached,,,,
+A*,Hard,48,1000,2.1866,83.1,51,Step Limit Reached,,,,
+A*,Hard,45,1000,2.5518,85.52,46,Step Limit Reached,,,,
