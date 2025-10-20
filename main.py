@@ -3,8 +3,8 @@ import heapq
 from collections import deque
 import time
 import pygame
-import csv  # <-- TAMBAHKAN INI
-import os   # <-- TAMBAHKAN INI
+import csv  
+import os  
 import collections
 
 # --- Konstanta Arah (opsional, untuk kejelasan) ---
@@ -15,9 +15,8 @@ RIGHT = (1, 0)
 
 # --- Konstanta Pygame ---
 BLOCK_SIZE = 20  # Ukuran setiap kotak grid dalam piksel
-(W_PAD, H_PAD) = (0, 0) # Padding jika perlu
+(W_PAD, H_PAD) = (0, 0) 
 
-# Warna (R, G, B)
 COLOR_BLACK = (0, 0, 0)
 COLOR_WHITE = (255, 255, 255)
 COLOR_GREEN = (0, 200, 0)
@@ -26,21 +25,18 @@ COLOR_RED = (200, 0, 0)
 COLOR_GRAY = (100, 100, 100)
 
 class SnakeGame:
-    """
-    Kelas ini mengelola semua logika inti dari permainan Snake.
-    """
     def __init__(self, width, height, static_obstacles=None, food_trigger=0, obstacle_spawn_count=(0,0)):
         self.width = width
         self.height = height
         self.grid_size = (width, height)
         
         self.static_obstacles = set(static_obstacles) if static_obstacles else set()
-        self.dynamic_obstacles = set() # <-- BARU: Set untuk obstacle dinamis
+        self.dynamic_obstacles = set()
         
         # Konfigurasi obstacle dinamis
-        self.food_trigger_threshold = food_trigger # <-- Ganti nama dari food_per_obstacle...
-        self.obstacle_spawn_min = obstacle_spawn_count[0] # <-- BARU
-        self.obstacle_spawn_max = obstacle_spawn_count[1] # <-- BARU
+        self.food_trigger_threshold = food_trigger
+        self.obstacle_spawn_min = obstacle_spawn_count[0] 
+        self.obstacle_spawn_max = obstacle_spawn_count[1] 
         self.food_eaten_counter = 0
         
         # Inisialisasi ular
@@ -58,7 +54,6 @@ class SnakeGame:
         self.game_over_reason = "" # Inisialisasi
 
     def place_food(self):
-        """Menempatkan makanan di posisi acak yang valid."""
         while True:
             x = random.randint(0, self.width - 1)
             y = random.randint(0, self.height - 1)
@@ -66,19 +61,12 @@ class SnakeGame:
             # Pastikan makanan tidak muncul di atas ular atau rintangan
             if (pos not in self.snake_body_set and
                 pos not in self.static_obstacles and
-                pos not in self.dynamic_obstacles): # <-- TAMBAHKAN PENGECEKAN INI
+                pos not in self.dynamic_obstacles): 
                 
                 self.food = pos
                 return
 
-    # --- METODE BARU ---
     def place_dynamic_obstacle(self):
-        """
-        Menempatkan rintangan dinamis di posisi acak yang valid.
-        Mengembalikan True jika berhasil, False jika gagal (misal: papan penuh).
-        """
-        # Coba cari tempat kosong, tapi batasi jumlah percobaan (misal 50x)
-        # Ini mencegah infinite loop jika papan penuh
         max_attempts = 50 
         for _ in range(max_attempts):
             x = random.randint(0, self.width - 1)
@@ -97,7 +85,6 @@ class SnakeGame:
         return False # <-- GAGAL (setelah 50x percobaan)
 
     def get_valid_neighbors(self, pos):
-        """Mendapatkan tetangga yang valid (tidak menabrak dinding/rintangan)."""
         neighbors = []
         x, y = pos
         for dx, dy in [UP, DOWN, LEFT, RIGHT]:
@@ -105,7 +92,7 @@ class SnakeGame:
             new_pos = (nx, ny)
             if 0 <= nx < self.width and 0 <= ny < self.height and \
                new_pos not in self.static_obstacles and \
-               new_pos not in self.dynamic_obstacles: # <-- TAMBAHKAN PENGECEKAN INI
+               new_pos not in self.dynamic_obstacles: 
                 
                 if new_pos not in self.snake_body_set:
                      neighbors.append(new_pos)
@@ -114,9 +101,6 @@ class SnakeGame:
         return neighbors
 
     def move(self, direction):
-        """
-        Menggerakkan ular ke arah yang ditentukan.
-        """
         if self.game_over:
             return
 
@@ -127,11 +111,10 @@ class SnakeGame:
         self.steps += 1
 
         # 1. Cek Game Over (Dinding, Rintangan, Self-collision)
-        # --- PERBARUI BLOK INI ---
         if ( 
            (new_head in self.snake_body_set) or
            (new_head in self.static_obstacles) or
-           (new_head in self.dynamic_obstacles) or # <-- Komentar sekarang aman
+           (new_head in self.dynamic_obstacles) or 
            (not (0 <= new_head[0] < self.width and 0 <= new_head[1] < self.height)) or
            (self.steps >= self.max_steps)
         ):
@@ -144,14 +127,12 @@ class SnakeGame:
             
             self.game_over = True
             return
-        # --- AKHIR PERBARUAN ---
 
         # 2. Tambahkan kepala baru
         self.snake.appendleft(new_head)
         self.snake_body_set.add(new_head)
 
         # 3. Cek Makanan
-        # --- PERBARUI BLOK INI ---
         if new_head == self.food:
             self.score += 1
             # Penting: Panggil place_food() DULU sebelum obstacle,
@@ -159,13 +140,13 @@ class SnakeGame:
             self.place_food() 
             
             # --- Logika Obstacle Dinamis ---
-            if self.food_trigger_threshold > 0: # Cek jika fitur ini aktif
+            if self.food_trigger_threshold > 0:
                 self.food_eaten_counter += 1
                 
                 # Jika sudah mencapai threshold 'n'
                 if self.food_eaten_counter >= self.food_trigger_threshold:
                     
-                    # TENTUKAN JUMLAH OBSTACLE (SESUAI REQUEST ANDA)
+                    # TENTUKAN JUMLAH OBSTACLE
                     num_to_spawn = random.randint(self.obstacle_spawn_min, self.obstacle_spawn_max)
                     
                     # Panggil fungsi spawn sebanyak num_to_spawn
@@ -177,28 +158,20 @@ class SnakeGame:
                             break 
                             
                     self.food_eaten_counter = 0 # Reset counter
-            # --- Akhir Logika ---
             
         else:
             # Hapus ekor (ular bergerak)
             tail = self.snake.pop()
             self.snake_body_set.remove(tail)
-        # --- AKHIR PERBARUAN ---
-
 
 # --- ALGORITMA PATHFINDING ---
 
 def heuristic_manhattan(a, b):
-    """Menghitung jarak Manhattan antara dua titik."""
     (x1, y1) = a
     (x2, y2) = b
     return abs(x1 - x2) + abs(y1 - y2)
 
 def find_path_bfs(game, goal):
-    """
-    Mencari jalur dari kepala ular ke makanan menggunakan BFS.
-    Menjamin jalur terpendek.
-    """
     start = game.snake[0]
     
     queue = deque([(start, [start])]) # (posisi, path_sejauh_ini)
@@ -222,10 +195,6 @@ def find_path_bfs(game, goal):
     return None, nodes_expanded # Gagal (tidak ada jalur)
 
 def find_path_a_star(game, goal):
-    """
-    Mencari jalur dari kepala ular ke makanan menggunakan A*.
-    Menggunakan heuristik Manhattan.
-    """
     start = game.snake[0]
     
     open_set = [(0, start)] # Priority queue (f_score, pos)
@@ -274,7 +243,6 @@ def find_path_a_star(game, goal):
     return None, nodes_expanded # Gagal (tidak ada jalur)
 
 def _run_bfs_simulation(game, start, goal, temp_obstacles):
-    """Helper BFS internal untuk simulasi. Menghindari tubuh ular palsu."""
     queue = deque([start])
     visited = {start}
     
@@ -306,11 +274,6 @@ def _run_bfs_simulation(game, start, goal, temp_obstacles):
 
 
 def is_path_safe(game, path_to_food):
-    """
-    Mensimulasikan pergerakan ular di 'path_to_food' dan mengecek
-    apakah ada jalur dari kepala baru ke ekor baru.
-    Versi ini mensimulasikan pergerakan ekor dengan benar.
-    """
     
     # 1. Buat tubuh ular hipotetis (virtual) menggunakan deque
     virtual_snake = deque(game.snake)
@@ -352,7 +315,6 @@ def get_direction_from_path(head, next_step):
     return (dx, dy)
 
 def draw_game(screen, game, block_size):
-    """Fungsi helper untuk menggambar state game di layar Pygame."""
     
     screen.fill(COLOR_BLACK) # Latar belakang
     
@@ -362,13 +324,11 @@ def draw_game(screen, game, block_size):
                            block_size, block_size)
         pygame.draw.rect(screen, COLOR_GRAY, rect)
         
-    # --- BLOK BARU ---
     # Gambar Rintangan Dinamis
     for (x, y) in game.dynamic_obstacles:
         rect = pygame.Rect(x * block_size + W_PAD, y * block_size + H_PAD, 
                            block_size, block_size)
-        pygame.draw.rect(screen, COLOR_GRAY_DYNAMIC, rect) # Gunakan warna baru
-    # --- AKHIR BLOK BARU ---
+        pygame.draw.rect(screen, COLOR_GRAY_DYNAMIC, rect)
 
     # Gambar Makanan
     if game.food:
@@ -388,14 +348,9 @@ def draw_game(screen, game, block_size):
     (x, y) = game.snake[0]
     rect = pygame.Rect(x * block_size + W_PAD, y * block_size + H_PAD, 
                        block_size, block_size)
-    pygame.draw.rect(screen, COLOR_GREEN_DARK, rect) # Kepala warna lebih gelap
-    # ... (sisa fungsi ini tidak berubah) ...
+    pygame.draw.rect(screen, COLOR_GREEN_DARK, rect)
     
 def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
-    """
-    Menjalankan satu simulasi penuh dari awal sampai akhir,
-    mencatat hasilnya ke CSV, dan menutup Pygame secara otomatis.
-    """
     
     # 1. Inisialisasi Game Logic
     W, H = config[LEVEL]["size"]
@@ -417,13 +372,13 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
     total_nodes_expanded = 0
     decision_count = 0
     
-    # 3. Eksekusi Simulasi (Game Loop Utama)
+    # 3. Eksekusi Simulasi
     running = True
     current_path_deque = deque()
 
     while running and not game.game_over:
         
-        # 3a. Event Handling (Hanya untuk tombol close darurat)
+        # 3a. Event Handling (untuk tombol close darurat)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -438,7 +393,7 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
             # --- LOGIKA BERCABANG BERDASARKAN ALGORITMA ---
             
             if ALGO == "A*":
-                # --- LOGIKA PINTAR A* (Dengan Safe-Path Check) ---
+                # --- LOGIKA A* (Dengan Safe-Path Check) ---
                 path_to_food = None
                 path_to_food, nodes = find_path_a_star(game, game.food)
                 nodes_expanded += nodes
@@ -466,7 +421,7 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
                             game.game_over_reason = "No Path Found (Trapped)"
             
             elif ALGO == "BFS":
-                # --- LOGIKA NAIF BFS (Tanpa Safe-Path Check) ---
+                # --- LOGIKA BFS (Tanpa safe-path check) ---
                 path_to_food = None
                 path_to_food, nodes = find_path_bfs(game, game.food)
                 nodes_expanded += nodes
@@ -508,7 +463,7 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
         # 3f. Kontrol Kecepatan Game (Gunakan FPS tinggi untuk batch)
         clock.tick(game_speed_fps) 
 
-    # 4. Tampilkan Hasil (di Konsol) - Versi singkat
+    # 4. Tampilkan Hasil
     print(f" Selesai. Makanan: {game.score:<3} | Langkah: {game.steps:<4} | Alasan: {game.game_over_reason}")
     
     # Inisialisasi metrik
@@ -536,7 +491,7 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
     except IOError as e:
         print(f"\n[ERROR] Gagal mencatat data ke CSV: {e}")
     
-    # 6. Tampilkan Layar "Game Over" (VERSI OTOMATIS)
+    # 6. Tampilkan Layar "Game Over"
     font = pygame.font.SysFont(None, 40)
     text_str = f"GAME OVER: {game.game_over_reason}"
     text = font.render(text_str, True, COLOR_WHITE)
@@ -544,16 +499,10 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
     screen.blit(text, text_rect)
     pygame.display.flip()
     
-    pygame.time.wait(250) # <-- TUNGGU HANYA 250ms
-    pygame.quit() # <-- TUTUP OTOMATIS
-# --- MAIN LOOP (Contoh Eksekusi) ---
+    pygame.time.wait(250) 
+    pygame.quit()
 
 def analyze_results(log_file):
-    """
-    Membaca log CSV (yang berisi BERBAGAI level) dan 
-    menerapkan model skoring spesifik per level, 
-    diikuti dengan analisis skor global.
-    """
     if not os.path.isfile(log_file):
         print(f"File log '{log_file}' tidak ditemukan. Tidak ada analisis.")
         return
@@ -595,7 +544,7 @@ def analyze_results(log_file):
                     
                     for metric, value in metrics_data.items():
                         stats_raw[level][algo][metric].append(value)
-                        stats_raw_global[algo][metric].append(value) # Tambahkan juga ke global
+                        stats_raw_global[algo][metric].append(value)
                         
                 except ValueError as e:
                     print(f"Peringatan: Melewatkan baris data error: {e} | {cleaned_row}")
@@ -620,33 +569,28 @@ def analyze_results(log_file):
 
         # --- 3. Definisikan SEMUA Bobot ---
         all_weights = {
-            # Bobot Global tetap sebagai baseline
             'Global': {'Food': 0.35, 'Steps': 0.10, 'Time': 0.25, 'Exp': 0.15, 'REI': 0.15},
             
-            # 🎯 TARGET 1: BFS unggul di papan kecil & statis
-            # Fokus pada Speed (Time) dan Path Length (Steps)
             'Easy':   {
-                'Food': 0.10, # Tidak terlalu penting
-                'Steps': 0.30, # Ular harus efisien
-                'Time': 0.40,  # BFS lebih cepat komputasinya
+                'Food': 0.10, 
+                'Steps': 0.30, 
+                'Time': 0.40, 
                 'Exp': 0.10,
                 'REI': 0.10
             }, 
             
-            # 🎯 TARGET 2 & 3: A* unggul di papan besar, kompleks, dan dinamis
-            # Fokus pada Survival/Growth (Food) dan Efficiency (Expansion)
             'Medium': {
-                'Food': 0.40, # Penting
+                'Food': 0.40, 
                 'Steps': 0.15,
                 'Time': 0.15, 
-                'Exp': 0.15,   # A* harus efisien dalam eksplorasi
+                'Exp': 0.15,   
                 'REI': 0.15
             },
             'Hard':   {
-                'Food': 0.45, # Paling penting. A* harus bertahan dan makan banyak
-                'Steps': 0.05, # Langkah tidak sepenting survival
-                'Time': 0.10,  # Biaya waktu A* diimbangi dengan hasil Food
-                'Exp': 0.25,   # Menghukum algoritma yang terlalu banyak eksplorasi
+                'Food': 0.45, 
+                'Steps': 0.05, 
+                'Time': 0.10,  
+                'Exp': 0.25, 
                 'REI': 0.15
             }
         }
@@ -759,7 +703,7 @@ def analyze_results(log_file):
 
 if __name__ == "__main__":
     
-    # --- Konfigurasi Skenario (Hanya tanya LEVEL) ---
+    # --- Konfigurasi Skenario ---
     valid_levels = ["Easy", "Medium", "Hard"]
     while True:
         level_input = input(f"Pilih Level Eksperimen ({'/'.join(valid_levels)}): ").capitalize()
@@ -767,14 +711,11 @@ if __name__ == "__main__":
             LEVEL = level_input
             break
         print(f"Input tidak valid. Harap pilih salah satu dari: {', '.join(valid_levels)}")
-
-    # GAME_SPEED_FPS diatur di dalam run_simulation (misal: 500)
-    # ALGO akan di-loop
     
     COLOR_GRAY = (100, 100, 100)
-    COLOR_GRAY_DYNAMIC = (160, 160, 160) # Warna baru untuk obstacle dinamis
+    COLOR_GRAY_DYNAMIC = (160, 160, 160)
 
-    # --- Persiapan Obstacle Statis ---
+    # --- Persiapan Lingkungan Level ---
     
     # Level Easy: Tanpa obstacle
     W_easy, H_easy = 15, 15
@@ -810,17 +751,16 @@ if __name__ == "__main__":
             "size": (20, 20),
             "obstacles": obs_medium,
             "food_trigger": 7,           # Setiap 7 makanan
-            "obstacle_spawn_count": (1, 2)  # Spawn TEPAT 1
+            "obstacle_spawn_count": (1, 2)  # Spawn 1 SAMPAI 2 
         },
         "Hard": {
             "size": (25, 25),
             "obstacles": obs_hard,
             "food_trigger": 5,           # Setiap 5 makanan
-            "obstacle_spawn_count": (1, 5)  # Spawn 1 SAMPAI 5 (Random)
+            "obstacle_spawn_count": (1, 5)  # Spawn 1 SAMPAI 5 
         }
     }
     
-    # --- (BARU) Main Execution Loop ---
     log_file_name = 'snake_experiment_log.csv'
     
     while True:
@@ -830,7 +770,6 @@ if __name__ == "__main__":
         print("Menjalankan 5x BFS...")
         for i in range(5):
             print(f"  [BFS Run {i+1}/5]...", end="")
-            # Gunakan FPS tinggi (misal 500) untuk simulasi cepat
             run_simulation(LEVEL, "BFS", config, game_speed_fps=70) 
         
         print("\nMenjalankan 5x A*...")
@@ -848,6 +787,5 @@ if __name__ == "__main__":
         if lanjut == 'n':
             break
     
-    # --- (BARU) Analisis Final ---
     print("\nSimulasi dihentikan oleh pengguna. Memulai analisis data...")
     analyze_results(log_file_name)
