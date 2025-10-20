@@ -418,7 +418,7 @@ def run_simulation(LEVEL, ALGO, config, game_speed_fps=30):
                     else:
                         game.game_over = True
                         if not path_to_food and game.game_over_reason == "":
-                            game.game_over_reason = "No Path Found (Trapped)"
+                            game.game_over_reason = "Dead-End Trap (Trapped)"
             
             elif ALGO == "BFS":
                 # --- LOGIKA BFS (Tanpa safe-path check) ---
@@ -789,3 +789,4 @@ if __name__ == "__main__":
     
     print("\nSimulasi dihentikan oleh pengguna. Memulai analisis data...")
     analyze_results(log_file_name)
+
